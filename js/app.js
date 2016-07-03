@@ -1,21 +1,24 @@
-function Player(life, name) {
+function Player(life, name, poison) {
     this.life = ko.observable(life);
-    this.poison = ko.observable(0);
+    this.poison = ko.observable(poison);
     this.name = ko.observable(name);
 }
 
 var Game = {
-    'globalMode': false,
-    '_startLife': 20,
-    'startLife': function() {
-        return parseInt(this._startLife);
+    globalMode: false,
+    _startLife: ko.observable(20),
+    startLife: function() {
+        return parseInt(this._startLife());
     },
-    'startPlayers': 2,
-    'players': ko.observableArray(),
-    'addPlayer': function(life, name) {
-        this.players.push(new Player(life, name));
+    startPlayers: ko.observable(2),
+    players: ko.observableArray(),
+    getPlayer: function(index) {
+        return this.players()[index];
     },
-    'addLife': function(index, lifeChange) {
+    addPlayer: function(life, name, poison) {
+        this.players.push(new Player(life, name, poison));
+    },
+    addLife: function(index, lifeChange) {
         var self = this;
 
         if (this.globalMode) {
@@ -26,7 +29,7 @@ var Game = {
             this.players()[index].life(this.players()[index].life() + lifeChange);
         }
     },
-    'addPoison': function(index, poisonChange) {
+    addPoison: function(index, poisonChange) {
         var self = this;
 
         if (this.globalMode) {
@@ -38,10 +41,10 @@ var Game = {
             this.players()[index].poison(this.players()[index].poison() + poisonChange);
         }
     },
-    'reset': function() {
+    reset: function() {
         this.players([]);
-        for (var i = 0; i < this.startPlayers; i++) {
-            this.addPlayer(this.startLife(), 'Player ' + (i + 1));
+        for (var i = 0; i < this.startPlayers(); i++) {
+            this.addPlayer(this.startLife(), 'Player ' + (i + 1), 0);
         }
     }
 };
@@ -73,72 +76,143 @@ function initPlayerButtons() {
         var value = parseInt($(this).val());
         var lifeMode = playerContainer.attr('data-life-mode') == 'life';
 
-        if (Game.globalMode) {
-            Game.players().forEach(function(element, key) {
-                if (lifeMode) {
-                    Game.addLife(key, value);
-                } else {
-                    Game.addPoison(key, value);
-                }
-            });
+        if (lifeMode) {
+            Game.addLife(playerContainer.index(), value);
         } else {
-            if (lifeMode) {
-                Game.addLife(playerContainer.index(), value);
-            } else {
-                Game.addPoison(playerContainer.index(), value);
-            }
+            Game.addPoison(playerContainer.index(), value);
         }
+        storeCookie();
     });
+}
+
+function storeCookie() {
+    var players = [];
+
+    for (var i = 0; i < Game.players().length; i++) {
+        players.push({
+            name: Game.getPlayer(i).name(),
+            life: Game.getPlayer(i).life(),
+            poison: Game.getPlayer(i).poison()
+        });
+    }
+
+    var game = {
+        startLife: Game.startLife(),
+        startPlayers: Game.startPlayers(),
+        players: players
+    };
+
+    Cookies.set('game', game, {expires: 7});
+}
+
+function getPlayersFromCookie(cookie) {
+    var players = [];
+
+    for (var i = 0; i < cookie.length; i++) {
+        players.push(new Player(cookie[i].life, cookie[i].name, cookie[i].poison));
+    }
+
+    return players;
+}
+
+function initGameFromCookie(cookie) {
+    Game._startLife(cookie.startLife);
+    Game.startPlayers(cookie.startPlayers);
+    Game.players(getPlayersFromCookie(cookie.players));
 }
 
 function initMenuButtons() {
     $('#life-reset').click(function() {
-        bootbox.confirm({
-            'closeButton': false,
-            'size': 'small',
-            'title': 'Reset game?',
-            'message': 'Do you want to start a new game with ' + Game.startPlayers + ' players on ' + Game.startLife() + ' life?',
-            'callback': function(result) {
-                if (result) {
-                    Game.reset();
-                    initPlayerButtons();
+        $('[data-toggle="tooltip"]').tooltip('hide');
+
+        if ($('.bootbox').length == 0) {
+            bootbox.confirm({
+                closeButton: false,
+                size: 'small',
+                title: 'Reset game?',
+                message: 'Do you want to start a new game with ' + Game.startPlayers() + ' players on ' + Game.startLife() + ' life?',
+                callback: function(result) {
+                    if (result) {
+                        Game.reset();
+                        storeCookie();
+                        initPlayerButtons();
+                    }
                 }
-            }
-        });
+            });
+        }
     });
 }
 
 $(document).ready(function() {
-    $(document).keydown(function (e) {
+    $(document).keydown(function(e) {
         if (e.keyCode == 17) {
             Game.globalMode = true;
+            $('.player-button-container').addClass('hover');
         }
     });
 
-    $(document).keyup(function (e) {
+    $(document).keyup(function(e) {
         if (e.keyCode == 17) {
             Game.globalMode = false;
+            $('.player-button-container').removeClass('hover');
         }
     });
 
-    $('.selectpicker').selectpicker();
+    $('.selectpicker').selectpicker({
+        width: '100px',
+        iconBase: 'fa'
+    }).on('show.bs.select', function() {
+        $('[data-toggle="tooltip"]').tooltip('hide').tooltip('disable');
+    }).on('hide.bs.select', function() {
+        $('[data-toggle="tooltip"]').tooltip('enable');
+    });
 
-    Game.reset();
+    $('.bootstrap-select').attr('data-toggle', 'tooltip');
+
+    $('.bootstrap-select [data-id="life-points"]').parent().attr('title', 'Life Points');
+    $('.bootstrap-select [data-id="life-players"]').parent().attr('title', 'Start Players');
+
+    var tooltips = $('[data-toggle="tooltip"]');
+
+    tooltips.tooltip({
+        placement: 'bottom',
+        container: 'body',
+        delay: 650
+    });
+
+    tooltips.mouseover(function() {
+        tooltips.not(this).tooltip('hide');
+    });
 
     ko.applyBindings(Game);
-
     $('#new-player-container').appendTo($('#player-containers'));
+
+    var cookie = Cookies.getJSON('game');
+    if (cookie != undefined) {
+        initGameFromCookie(cookie);
+        $('.selectpicker').selectpicker('refresh');
+    } else {
+        Game.reset();
+    }
 
     initMenuButtons();
     initPlayerButtons();
 
-    $('.new-player').click(function () {
+    $('.new-player').click(function() {
         var players = parseInt(Game.players().length) + 1;
-        Game.addPlayer(20, 'Player ' + players);
+        Game.addPlayer(20, 'Player ' + players, 0);
+        Game.startPlayers(players);
+
+        storeCookie();
+
+        $('.selectpicker').selectpicker('refresh');
+        $('.dropdown-toggle').removeAttr('title');
 
         $('.poison-button, .life-button').off();
 
         $('.player-button-container .btn').off();
         initPlayerButtons();
     });
+
+    $('.dropdown-toggle').removeAttr('title');
 });

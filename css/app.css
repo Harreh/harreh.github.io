@@ -1,4 +1,13 @@
 @charset "UTF-8";
+.tether-element, .tether-element:after, .tether-element:before, .tether-element *, .tether-element *:after, .tether-element *:before {
+  box-sizing: border-box; }
+
+.tether-element {
+  position: absolute;
+  display: none; }
+  .tether-element.tether-open {
+    display: block; }
+
 /*!
  * Bootstrap v3.3.6 (http://getbootstrap.com)
  * Copyright 2011-2015 Twitter, Inc.
@@ -8862,7 +8871,7 @@ body {
   padding: 0; }
 
 body {
-  background-color: #4D77A6; }
+  background-color: #286090; }
 
 .content {
   display: table;
@@ -8984,6 +8993,14 @@ body {
 .selectpicker {
   display: none; }
 
+.bootstrap-select .btn {
+  font-size: 25px;
+  height: 50px; }
+
+.dropdown-menu {
+  font-size: 25px;
+  text-align: center; }
+
 #new-player-container {
   background: none;
   border: 0;
@@ -9000,10 +9017,20 @@ body {
   opacity: 1;
   transition: opacity .2s ease-in; }
 
+.hover {
+  opacity: 1;
+  transition: opacity .2s ease-in; }
+
 .btn,
 .dropdown-menu,
 .modal-content {
   border: 0;
   border-radius: 0; }
+
+#player-containers {
+  margin-left: 150px; }
+
+.tooltip-inner {
+  font-size: 20px; }
 
 /*# sourceMappingURL=app.css.map */
